@@ -8,3 +8,8 @@ venv/
 
 # OS
 .DS_Store
+
+# Large datasets
+data/raw/
+data/interim/
+data/processed/
