@@ -1,2 +1,6 @@
 pandas
 numpy
+pyarrow
+scikit-learn
+tqdm
+scipy
