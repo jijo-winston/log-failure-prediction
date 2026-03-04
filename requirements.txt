@@ -5,3 +5,6 @@ scikit-learn
 tqdm
 scipy
 joblib
+fastapi
+uvicorn
+pydantic

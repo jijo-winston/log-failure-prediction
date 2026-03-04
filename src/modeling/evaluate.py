@@ -16,6 +16,7 @@ from sklearn.metrics import (
 )
 
 from src.config import PATHS
+from src.features.text_cleaning import normalize_log_text
 from src.visualization.plots import (
     plot_confusion_matrix,
     plot_pr_curve,
@@ -64,32 +65,25 @@ def find_best_threshold(y_true: np.ndarray, y_prob: np.ndarray):
     """
     precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
 
-    # precision/recall have length = len(thresholds)+1
-    # compute f1 for each point; ignore last point (no threshold)
     f1_scores = (2 * precision * recall) / (precision + recall + 1e-12)
-
-    # thresholds correspond to f1_scores[0:len(thresholds)]
     f1_scores_for_thresholds = f1_scores[:-1]
     best_idx = int(np.argmax(f1_scores_for_thresholds))
 
     best_threshold = float(thresholds[best_idx])
     best_f1 = float(f1_scores_for_thresholds[best_idx])
-
     return best_threshold, best_f1
 
 
 def evaluate(use_best_threshold: bool = True, threshold: float = 0.5):
-    """
-    Evaluate on test set. If use_best_threshold=True, pick threshold that maximizes F1.
-    Otherwise use provided threshold.
-    """
     ensure_dirs()
 
     df = load_test_data()
     y_true = df["label"].to_numpy()
 
     model, vectorizer = load_model_and_vectorizer()
-    X = vectorizer.transform(df["text"])
+
+    # Apply the same normalization used during training
+    X = vectorizer.transform(df["text"].map(normalize_log_text))
 
     y_prob = model.predict_proba(X)[:, 1]
     pr_auc = float(average_precision_score(y_true, y_prob))
@@ -111,6 +105,7 @@ def evaluate(use_best_threshold: bool = True, threshold: float = 0.5):
         "precision_test": float(precision_score(y_true, y_pred, zero_division=0)),
         "recall_test": float(recall_score(y_true, y_pred, zero_division=0)),
         "pr_auc_test": float(pr_auc),
+        "text_normalization": True,
     }
 
     print("\n=== Test Metrics ===")
@@ -144,7 +139,6 @@ def evaluate(use_best_threshold: bool = True, threshold: float = 0.5):
     print(" -", pr_path)
     print(" -", dist_path)
 
-    # Optional: show a few top-scoring anomalies
     out = df[["block_id", "label"]].copy()
     out["prob_anomaly"] = y_prob
     top = out.sort_values("prob_anomaly", ascending=False).head(10)
@@ -153,5 +147,4 @@ def evaluate(use_best_threshold: bool = True, threshold: float = 0.5):
 
 
 if __name__ == "__main__":
-    # default: imbalance-aware threshold tuning enabled
     evaluate(use_best_threshold=True, threshold=0.5)
