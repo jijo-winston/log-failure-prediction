@@ -45,7 +45,7 @@ def main():
     for step in steps:
         run_step(step)
 
-    print("\n✅ Pipeline completed successfully.")
+    print("\n Pipeline completed successfully.")
 
 
 if __name__ == "__main__":

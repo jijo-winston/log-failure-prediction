@@ -1,3 +1,4 @@
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -10,3 +11,21 @@ class PredictResponse(BaseModel):
     prob_anomaly: float
     pred_label: int
     threshold: float
+
+
+class PredictBatchRequest(BaseModel):
+    texts: List[str] = Field(..., min_length=1, description="List of raw log texts.")
+    threshold: float = Field(0.5, ge=0.0, le=1.0, description="Decision threshold for anomaly label.")
+
+
+class PredictBatchResponse(BaseModel):
+    threshold: float
+    results: List[PredictResponse]
+
+
+class ModelInfoResponse(BaseModel):
+    model_type: str
+    vectorizer_type: str
+    vectorizer_config: dict
+    threshold_recommended: Optional[float] = None
+    artifacts: dict
