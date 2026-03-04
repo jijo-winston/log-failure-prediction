@@ -15,6 +15,7 @@ from src.config import (
     TFIDF_NGRAM_RANGE,
     TFIDF_MIN_DF,
 )
+from src.features.text_cleaning import normalize_log_text
 
 
 def ensure_dirs():
@@ -49,7 +50,7 @@ def train():
     ensure_dirs()
 
     df = load_train_data()
-    X_text = df["text"]
+    X_text = df["text"].map(normalize_log_text)
     y = df["label"].to_numpy()
 
     vectorizer = build_vectorizer()
@@ -57,12 +58,12 @@ def train():
 
     model = LogisticRegression(
         max_iter=300,
-        class_weight="balanced",  # important for ~3% anomalies
+        class_weight="balanced",
         random_state=RANDOM_SEED,
     )
     model.fit(X, y)
 
-    # quick train metrics (sanity only; real metrics come from evaluate.py on test set)
+    # train sanity metrics (not final)
     probs = model.predict_proba(X)[:, 1]
     preds = (probs >= 0.5).astype(int)
 
@@ -75,6 +76,7 @@ def train():
         "recall_train": float(recall_score(y, preds, zero_division=0)),
         "pr_auc_train": float(average_precision_score(y, probs)),
         "threshold": 0.5,
+        "text_normalization": True,
     }
 
     params = {
@@ -91,6 +93,9 @@ def train():
             "class_weight": "balanced",
             "random_state": RANDOM_SEED,
         },
+        "preprocessing": {
+            "normalize_log_text": True
+        }
     }
 
     model_path = PATHS.models_dir / "baseline_lr.joblib"
