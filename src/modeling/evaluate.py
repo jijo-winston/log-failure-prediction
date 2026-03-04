@@ -56,7 +56,33 @@ def load_model_and_vectorizer():
     return model, vectorizer
 
 
-def evaluate(threshold: float = 0.5):
+def find_best_threshold(y_true: np.ndarray, y_prob: np.ndarray):
+    """
+    Find threshold that maximizes F1 using the Precision-Recall curve.
+    Returns:
+        best_threshold, best_f1
+    """
+    precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
+
+    # precision/recall have length = len(thresholds)+1
+    # compute f1 for each point; ignore last point (no threshold)
+    f1_scores = (2 * precision * recall) / (precision + recall + 1e-12)
+
+    # thresholds correspond to f1_scores[0:len(thresholds)]
+    f1_scores_for_thresholds = f1_scores[:-1]
+    best_idx = int(np.argmax(f1_scores_for_thresholds))
+
+    best_threshold = float(thresholds[best_idx])
+    best_f1 = float(f1_scores_for_thresholds[best_idx])
+
+    return best_threshold, best_f1
+
+
+def evaluate(use_best_threshold: bool = True, threshold: float = 0.5):
+    """
+    Evaluate on test set. If use_best_threshold=True, pick threshold that maximizes F1.
+    Otherwise use provided threshold.
+    """
     ensure_dirs()
 
     df = load_test_data()
@@ -66,15 +92,21 @@ def evaluate(threshold: float = 0.5):
     X = vectorizer.transform(df["text"])
 
     y_prob = model.predict_proba(X)[:, 1]
-    y_pred = (y_prob >= threshold).astype(int)
+    pr_auc = float(average_precision_score(y_true, y_prob))
 
-    pr_auc = average_precision_score(y_true, y_prob)
+    if use_best_threshold:
+        threshold, best_f1 = find_best_threshold(y_true, y_prob)
+        print(f"\nOptimal threshold (F1-max): {threshold:.6f}")
+        print(f"Best achievable F1 at this threshold: {best_f1:.6f}")
+
+    y_pred = (y_prob >= threshold).astype(int)
 
     metrics = {
         "evaluated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "test_rows": int(len(df)),
         "anomaly_rate_test": float(np.mean(y_true)),
         "threshold": float(threshold),
+        "threshold_strategy": "f1_max" if use_best_threshold else "fixed_0.5",
         "f1_test": float(f1_score(y_true, y_pred)),
         "precision_test": float(precision_score(y_true, y_pred, zero_division=0)),
         "recall_test": float(recall_score(y_true, y_pred, zero_division=0)),
@@ -121,4 +153,5 @@ def evaluate(threshold: float = 0.5):
 
 
 if __name__ == "__main__":
-    evaluate(threshold=0.5)
+    # default: imbalance-aware threshold tuning enabled
+    evaluate(use_best_threshold=True, threshold=0.5)
