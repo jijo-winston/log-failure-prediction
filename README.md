@@ -1,129 +1,269 @@
-# HDFS Log Anomaly Detection
+# Distributed System Failure Prediction from Operational Logs
 
-## Overview
+Machine Learning pipeline for predicting distributed system failures
+from operational log streams using temporal feature engineering and
+ensemble learning.
 
-This project builds a machine learning pipeline to detect anomalous HDFS blocks using raw system logs.
+This project converts semi-structured system logs into behavioral
+sequences and predicts failures **before they occur**, enabling early
+warning for system reliability engineering.
 
-The objective is to:
-- Parse raw log lines
-- Aggregate logs at block level
-- Merge anomaly labels
-- Train a baseline classifier
-- Evaluate performance on unseen data
-- Provide interpretability for predictions
+------------------------------------------------------------------------
 
-The dataset used is the publicly available HDFS log dataset.
+# Overview
 
----
+Modern distributed systems generate massive volumes of operational
+logs.\
+Failures are often preceded by subtle behavioral changes such as:
 
-## Dataset
+-   bursty error activity
+-   unusual event transitions
+-   rare system events
+-   degraded operational patterns
 
-- ~11M raw log lines
-- 575,061 unique block IDs
-- ~2.93% anomaly rate
-- Stratified train/test split
+This project builds a machine learning pipeline that learns these
+patterns and predicts failures **ahead of time**.
 
-Block-level aggregation is performed before modeling.
+The system converts raw logs into time-windowed behavioral features and
+trains an ensemble model to predict failures within a forward time
+horizon.
 
----
+------------------------------------------------------------------------
 
-## Pipeline
+# Key Features
 
-1. **Raw Parsing**
-   - Extract `block_id` from each log line
-   - Aggregate log messages per block
+• Log parsing for large-scale distributed system logs\
+• Time-windowed behavioral sequence modeling\
+• Temporal degradation feature engineering\
+• Forward-horizon failure prediction\
+• Ensemble learning (text + statistical features)\
+• Precision--Recall evaluation for imbalanced data\
+• Early-warning lead-time analysis\
+• Fully reproducible ML pipeline
 
-2. **Dataset Building**
-   - Merge anomaly labels
-   - Create stratified train/test split
-   - Save parquet artifacts
+------------------------------------------------------------------------
 
-3. **Feature Extraction**
-   - TF-IDF (unigram + bigram)
-   - max_features = configurable
+# Dataset
 
-4. **Model**
-   - Logistic Regression
-   - `class_weight="balanced"`
+Dataset used: **HDFS Log Dataset**
 
-5. **Evaluation**
-   - F1 Score
-   - Precision / Recall
-   - PR-AUC
-   - Confusion Matrix
-   - Precision-Recall curve
+Contains:
 
----
+-   11,175,629 log events\
+-   575,061 unique blocks\
+-   Anomaly labels for failing blocks
 
-## Baseline Results (Test Set)
+Source: https://zenodo.org/record/3227177
 
-- F1 Score: **0.9495**
-- Precision: **0.9043**
-- Recall: **0.9994**
-- PR-AUC: **0.9840**
-- Accuracy: 99.69%
+Files used:
 
-Confusion Matrix:
+-   `HDFS.log`
+-   `anomaly_label.csv`
 
-|            | Pred Normal | Pred Anomaly |
-|------------|------------|-------------|
-| Normal     | 111,289    | 356         |
-| Anomaly    | 2          | 3,366       |
+------------------------------------------------------------------------
 
----
+# System Architecture
 
-## Evaluation Visualizations
+Raw Logs → Log Parsing → Time Window Aggregation → Temporal Feature
+Engineering → Forward Failure Labeling → Ensemble Model → Early Warning
+Prediction
 
-The evaluation module generates diagnostic plots to analyze model performance.
+------------------------------------------------------------------------
 
-Generated artifacts include:
+# Machine Learning Pipeline
 
-- **Confusion Matrix** – classification performance across normal vs anomaly blocks
-- **Precision-Recall Curve** – performance under class imbalance
-- **Anomaly Probability Distribution** – separation between normal and anomalous blocks
+## 1. Log Parsing
 
-These plots are automatically generated under:
-reports/figures/
+Semi‑structured logs are parsed into structured events containing:
 
-## Explainability
+-   timestamp
+-   block id
+-   log message
+-   event type
 
-The linear model allows:
+Example:
 
-- Global feature importance (top anomaly-indicating tokens)
-- Local per-block explanation (feature contributions)
+    081109 203518 INFO dfs.DataNode$BlockReceiver: Receiving block blk_38865049064139660
 
-Example anomaly indicators:
-- `unexpected error`
-- `not found`
-- `redundant`
-- `addstoredblock`
+------------------------------------------------------------------------
 
----
+## 2. Time Window Behavioral Sequences
 
-## How to Run
+Logs are aggregated into **5‑minute windows per block** to capture
+behavioral patterns over time.
 
-### 1. Build dataset
-python -m src.pipelines.build_dataset
+Example window statistics:
 
-### 2. Train baseline
-python -m src.modeling.train_baseline
+-   event_count
+-   error_count
+-   warn_count
 
-### 3. Evaluate
-python -m src.modeling.evaluate
+------------------------------------------------------------------------
 
-### 4. Explain predictions
-python -m src.modeling.explain --global
+## 3. Temporal Feature Engineering
 
-### Future Improvements
+Key degradation indicators:
 
-Log normalization improvements
-Template-based log parsing (Drain)
-Gradient Boosting / XGBoost comparison
-Threshold tuning for optimal F1
-Cross-validation
-Drift monitoring
+-   event_count
+-   error_rate
+-   rare_event_count
+-   burst_ratio
+-   transition_count
+-   unique_event_types
 
-### Status
+These features capture abnormal system behavior.
 
-Baseline model implemented and evaluated.
-Further feature engineering and model refinement ongoing.
+------------------------------------------------------------------------
+
+## 4. Forward Failure Prediction
+
+Instead of detecting failures after they occur, the model predicts:
+
+    features at time t → failure within next H windows
+
+Default prediction horizon:
+
+**3 windows (15 minutes)**
+
+------------------------------------------------------------------------
+
+## 5. Ensemble Learning
+
+Two complementary models are trained.
+
+### Text Model
+
+Log message sequences → TF‑IDF → Logistic Regression
+
+### Temporal Model
+
+Statistical behavioral features → Random Forest
+
+### Ensemble
+
+Soft voting combination:
+
+    Ensemble = 0.6 * Text Model + 0.4 * Temporal Model
+
+------------------------------------------------------------------------
+
+# Evaluation Metrics
+
+Because failures are rare, we use:
+
+-   Precision
+-   Recall
+-   F1 Score
+-   PR‑AUC
+
+instead of raw accuracy.
+
+------------------------------------------------------------------------
+
+# Results
+
+Test dataset:
+
+-   390,517 time windows
+-   Failure rate: **2.24%**
+
+Model performance:
+
+-   PR‑AUC: **0.265**
+-   F1 Score: **0.36**
+-   Precision: **0.51**
+-   Recall: **0.28**
+
+------------------------------------------------------------------------
+
+# Early Warning Capability
+
+Failing blocks in test set: **3368**\
+Failures predicted early: **1107**
+
+Early warning detection rate:
+
+**32.9% of failures predicted before onset**
+
+Lead time statistics:
+
+-   Median warning time: **130 minutes**
+-   Mean warning time: **238 minutes**
+-   Maximum warning time: **885 minutes**
+
+This demonstrates the system can provide **hours of advance warning
+before failures occur**.
+
+------------------------------------------------------------------------
+
+# Project Structure
+
+    log-failure-prediction
+    │
+    ├── data
+    │   ├── raw
+    │   ├── interim
+    │   └── processed
+    │
+    ├── models
+    ├── reports
+    │   └── figures
+    │
+    ├── src
+    │   ├── config.py
+    │   ├── data
+    │   │   └── parse_hdfs.py
+    │   ├── features
+    │   │   ├── text_cleaning.py
+    │   │   └── forward_labeling.py
+    │   ├── modeling
+    │   │   ├── train_ensemble.py
+    │   │   ├── evaluate_ensemble.py
+    │   │   └── evaluate_lead_time.py
+    │   ├── pipelines
+    │   │   ├── build_time_windows.py
+    │   │   ├── build_temporal_features.py
+    │   │   ├── build_forward_dataset.py
+    │   │   └── run_forward.py
+    │   └── visualization
+    │       └── plots.py
+
+------------------------------------------------------------------------
+
+# Running the Project
+
+Clone repository:
+
+    git clone https://github.com/jijo-winston/log-failure-prediction.git
+    cd log-failure-prediction
+
+Create environment:
+
+    python -m venv venv
+    source venv/bin/activate
+
+Install dependencies:
+
+    pip install -r requirements.txt
+
+Run full pipeline:
+
+    python -m src.pipelines.run_forward
+
+------------------------------------------------------------------------
+
+# Applications
+
+Potential real‑world uses:
+
+-   Distributed system reliability monitoring
+-   Cloud infrastructure failure prediction
+-   Operational anomaly detection
+-   SRE early warning systems
+
+------------------------------------------------------------------------
+
+# Author
+
+Jijo Winston
+GitHub: https://github.com/jijo-winston

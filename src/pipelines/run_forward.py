@@ -17,11 +17,12 @@ def main():
         "src.pipelines.build_forward_dataset",
         "src.modeling.train_ensemble",
         "src.modeling.evaluate_ensemble",
+        "src.modeling.evaluate_lead_time",
     ]
     for s in steps:
         run_step(s)
 
-    print("\n✅ Forward prediction pipeline completed successfully.")
+    print("\n Forward prediction pipeline completed successfully.")
 
 
 if __name__ == "__main__":
