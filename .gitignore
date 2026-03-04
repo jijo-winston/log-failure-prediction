@@ -1,15 +1,35 @@
 # Python
 __pycache__/
 *.py[cod]
+*.so
+*.egg-info/
 
 # Virtual env
 venv/
 .env/
+.venv/
 
 # OS
 .DS_Store
+.vscode/
+.idea/
 
-# Large datasets
+# Data
 data/raw/
 data/interim/
 data/processed/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model artifacts
+models/
+*.joblib
+
+# Reports / Generated outputs
+reports/figures/
+reports/*.json
+reports/*.csv
+
+# Logs
+*.log
