@@ -72,6 +72,19 @@ Confusion Matrix:
 
 ---
 
+## Evaluation Visualizations
+
+The evaluation module generates diagnostic plots to analyze model performance.
+
+Generated artifacts include:
+
+- **Confusion Matrix** – classification performance across normal vs anomaly blocks
+- **Precision-Recall Curve** – performance under class imbalance
+- **Anomaly Probability Distribution** – separation between normal and anomalous blocks
+
+These plots are automatically generated under:
+reports/figures/
+
 ## Explainability
 
 The linear model allows:
