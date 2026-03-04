@@ -37,7 +37,7 @@ def main():
         "src.data.parse_hdfs",
         "src.pipelines.build_time_windows",
         "src.pipelines.build_temporal_features",
-        "src.pipelines.build_dataset",
+        "src.pipelines.build_forward_dataset",
         "src.modeling.train_baseline",
         "src.modeling.evaluate",
     ]
