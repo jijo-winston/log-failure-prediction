@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 import joblib
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from sklearn.metrics import (
     classification_report,
@@ -17,6 +16,11 @@ from sklearn.metrics import (
 )
 
 from src.config import PATHS
+from src.visualization.plots import (
+    plot_confusion_matrix,
+    plot_pr_curve,
+    plot_probability_distribution,
+)
 
 
 def ensure_dirs():
@@ -52,36 +56,6 @@ def load_model_and_vectorizer():
     return model, vectorizer
 
 
-def save_confusion_matrix(cm: np.ndarray, out_path):
-    plt.figure()
-    plt.imshow(cm)
-    plt.title("Confusion Matrix (Test)")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.xticks([0, 1], ["Normal", "Anomaly"])
-    plt.yticks([0, 1], ["Normal", "Anomaly"])
-
-    # annotate
-    for (i, j), val in np.ndenumerate(cm):
-        plt.text(j, i, str(val), ha="center", va="center")
-
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=200)
-    plt.close()
-
-
-def save_pr_curve(y_true: np.ndarray, y_prob: np.ndarray, out_path):
-    precision, recall, _ = precision_recall_curve(y_true, y_prob)
-    plt.figure()
-    plt.plot(recall, precision)
-    plt.title("Precision-Recall Curve (Test)")
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=200)
-    plt.close()
-
-
 def evaluate(threshold: float = 0.5):
     ensure_dirs()
 
@@ -94,7 +68,8 @@ def evaluate(threshold: float = 0.5):
     y_prob = model.predict_proba(X)[:, 1]
     y_pred = (y_prob >= threshold).astype(int)
 
-    # Metrics
+    pr_auc = average_precision_score(y_true, y_prob)
+
     metrics = {
         "evaluated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "test_rows": int(len(df)),
@@ -103,7 +78,7 @@ def evaluate(threshold: float = 0.5):
         "f1_test": float(f1_score(y_true, y_pred)),
         "precision_test": float(precision_score(y_true, y_pred, zero_division=0)),
         "recall_test": float(recall_score(y_true, y_pred, zero_division=0)),
-        "pr_auc_test": float(average_precision_score(y_true, y_prob)),
+        "pr_auc_test": float(pr_auc),
     }
 
     print("\n=== Test Metrics ===")
@@ -116,19 +91,26 @@ def evaluate(threshold: float = 0.5):
     print("\n=== Confusion Matrix (Test) ===")
     print(cm)
 
-    # Save artifacts
+    # Save metrics JSON
     metrics_path = PATHS.reports_dir / "test_metrics.json"
     metrics_path.write_text(json.dumps(metrics, indent=2))
 
+    # Curves / plots
+    precision_curve, recall_curve, _ = precision_recall_curve(y_true, y_prob)
+
     cm_path = PATHS.figures_dir / "confusion_matrix.png"
     pr_path = PATHS.figures_dir / "pr_curve.png"
-    save_confusion_matrix(cm, cm_path)
-    save_pr_curve(y_true, y_prob, pr_path)
+    dist_path = PATHS.figures_dir / "probability_distribution.png"
+
+    plot_confusion_matrix(cm, cm_path)
+    plot_pr_curve(precision_curve, recall_curve, pr_auc, pr_path)
+    plot_probability_distribution(y_prob, y_true, dist_path)
 
     print("\nSaved:")
     print(" -", metrics_path)
     print(" -", cm_path)
     print(" -", pr_path)
+    print(" -", dist_path)
 
     # Optional: show a few top-scoring anomalies
     out = df[["block_id", "label"]].copy()
